@@ -38,11 +38,19 @@ public class TotaisService(AppDbContext db)
 {
     public async Task<TotaisDto> ObterAsync(CancellationToken ct)
     {
-        // A projeção mantém pessoas sem lançamentos e soma receitas/despesas no banco.
-        var pessoas = await db.Pessoas.AsNoTracking().OrderBy(p => p.Nome).Select(p => new TotalPessoaDto(p.Id, p.Nome, p.Idade,
-            p.Transacoes.Where(t => t.Tipo == TipoTransacao.Receita).Sum(t => (decimal?)t.Valor) ?? 0,
-            p.Transacoes.Where(t => t.Tipo == TipoTransacao.Despesa).Sum(t => (decimal?)t.Valor) ?? 0, 0)).ToListAsync(ct);
-        pessoas = pessoas.Select(p => p with { Saldo = p.TotalReceitas - p.TotalDespesas }).ToList();
+        // SQLite não suporta SUM diretamente sobre decimal. Carregamos apenas as pessoas
+        // e suas transações para preservar a precisão monetária e agregamos em memória.
+        // O Include também garante que pessoas sem lançamentos permaneçam no resultado.
+        var registros = await db.Pessoas.AsNoTracking()
+            .Include(p => p.Transacoes)
+            .OrderBy(p => p.Nome)
+            .ToListAsync(ct);
+        var pessoas = registros.Select(p =>
+        {
+            var receitas = p.Transacoes.Where(t => t.Tipo == TipoTransacao.Receita).Sum(t => t.Valor);
+            var despesas = p.Transacoes.Where(t => t.Tipo == TipoTransacao.Despesa).Sum(t => t.Valor);
+            return new TotalPessoaDto(p.Id, p.Nome, p.Idade, receitas, despesas, receitas - despesas);
+        }).ToList();
         var receitas = pessoas.Sum(p => p.TotalReceitas); var despesas = pessoas.Sum(p => p.TotalDespesas);
         return new(pessoas, receitas, despesas, receitas - despesas);
     }

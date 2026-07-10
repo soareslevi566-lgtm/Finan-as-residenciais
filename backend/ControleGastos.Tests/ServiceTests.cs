@@ -1,4 +1,5 @@
 using ControleGastos.Api.Data; using ControleGastos.Api.DTOs; using ControleGastos.Api.Enums; using ControleGastos.Api.Exceptions; using ControleGastos.Api.Repositories; using ControleGastos.Api.Services; using Microsoft.Data.Sqlite; using Microsoft.EntityFrameworkCore;
+using Xunit;
 namespace ControleGastos.Tests;
 public class ServiceTests : IDisposable
 {
