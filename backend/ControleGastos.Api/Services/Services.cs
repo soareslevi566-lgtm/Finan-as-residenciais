@@ -1,0 +1,49 @@
+using ControleGastos.Api.Data;
+using ControleGastos.Api.DTOs;
+using ControleGastos.Api.Enums;
+using ControleGastos.Api.Exceptions;
+using ControleGastos.Api.Models;
+using ControleGastos.Api.Repositories;
+using Microsoft.EntityFrameworkCore;
+namespace ControleGastos.Api.Services;
+
+public class PessoaService(IPessoaRepository repo)
+{
+    public async Task<PessoaDto> CriarAsync(CriarPessoaDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nome)) throw new AppException("O nome é obrigatório.");
+        if (dto.Idade < 0) throw new AppException("A idade deve ser maior ou igual a zero.");
+        var p = await repo.CriarAsync(new Pessoa { Nome = dto.Nome.Trim(), Idade = dto.Idade }, ct);
+        return new(p.Id, p.Nome, p.Idade);
+    }
+    public async Task<IReadOnlyList<PessoaDto>> ListarAsync(CancellationToken ct) => (await repo.ListarAsync(ct)).Select(p => new PessoaDto(p.Id, p.Nome, p.Idade)).ToList();
+    public async Task ExcluirAsync(int id, CancellationToken ct) { var p = await repo.ObterAsync(id, ct) ?? throw new AppException("Pessoa não encontrada.", 404); await repo.ExcluirAsync(p, ct); }
+}
+public class TransacaoService(IPessoaRepository pessoas, ITransacaoRepository transacoes)
+{
+    public async Task<TransacaoDto> CriarAsync(CriarTransacaoDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Descricao)) throw new AppException("A descrição é obrigatória.");
+        if (dto.Valor <= 0) throw new AppException("O valor deve ser maior que zero.");
+        if (!Enum.IsDefined(dto.Tipo)) throw new AppException("Tipo de transação inválido.");
+        var pessoa = await pessoas.ObterAsync(dto.PessoaId, ct) ?? throw new AppException("Pessoa não encontrada.", 404);
+        // Regra de domínio protegida no servidor, mesmo que a interface também a antecipe.
+        if (pessoa.Idade < 18 && dto.Tipo == TipoTransacao.Receita) throw new AppException("Pessoas menores de 18 anos só podem possuir transações do tipo despesa.");
+        var t = await transacoes.CriarAsync(new Transacao { Descricao = dto.Descricao.Trim(), Valor = dto.Valor, Tipo = dto.Tipo, PessoaId = pessoa.Id }, ct);
+        return new(t.Id, t.Descricao, t.Valor, t.Tipo, pessoa.Id, pessoa.Nome);
+    }
+    public async Task<IReadOnlyList<TransacaoDto>> ListarAsync(int? pessoaId, CancellationToken ct) => (await transacoes.ListarAsync(pessoaId, ct)).Select(t => new TransacaoDto(t.Id, t.Descricao, t.Valor, t.Tipo, t.PessoaId, t.Pessoa.Nome)).ToList();
+}
+public class TotaisService(AppDbContext db)
+{
+    public async Task<TotaisDto> ObterAsync(CancellationToken ct)
+    {
+        // A projeção mantém pessoas sem lançamentos e soma receitas/despesas no banco.
+        var pessoas = await db.Pessoas.AsNoTracking().OrderBy(p => p.Nome).Select(p => new TotalPessoaDto(p.Id, p.Nome, p.Idade,
+            p.Transacoes.Where(t => t.Tipo == TipoTransacao.Receita).Sum(t => (decimal?)t.Valor) ?? 0,
+            p.Transacoes.Where(t => t.Tipo == TipoTransacao.Despesa).Sum(t => (decimal?)t.Valor) ?? 0, 0)).ToListAsync(ct);
+        pessoas = pessoas.Select(p => p with { Saldo = p.TotalReceitas - p.TotalDespesas }).ToList();
+        var receitas = pessoas.Sum(p => p.TotalReceitas); var despesas = pessoas.Sum(p => p.TotalDespesas);
+        return new(pessoas, receitas, despesas, receitas - despesas);
+    }
+}
