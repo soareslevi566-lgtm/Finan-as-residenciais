@@ -6,6 +6,10 @@ using ControleGastos.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+// Usa somente o console para evitar dependência do Event Log do Windows,
+// que pode exigir privilégios administrativos em máquinas de desenvolvimento.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IPessoaRepository, PessoaRepository>();
 builder.Services.AddScoped<ITransacaoRepository, TransacaoRepository>();

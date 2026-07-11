@@ -1,4 +1,5 @@
 using ControleGastos.Api.Data;
+using ControleGastos.Api.Exceptions;
 using ControleGastos.Api.Models;
 using Microsoft.EntityFrameworkCore;
 namespace ControleGastos.Api.Repositories;
@@ -11,7 +12,16 @@ public class PessoaRepository(AppDbContext db) : IPessoaRepository
 {
     public Task<List<Pessoa>> ListarAsync(CancellationToken ct) => db.Pessoas.AsNoTracking().OrderBy(x => x.Nome).ToListAsync(ct);
     public Task<Pessoa?> ObterAsync(int id, CancellationToken ct) => db.Pessoas.FirstOrDefaultAsync(x => x.Id == id, ct);
-    public async Task<Pessoa> CriarAsync(Pessoa p, CancellationToken ct) { db.Add(p); await db.SaveChangesAsync(ct); return p; }
+    public async Task<Pessoa> CriarAsync(Pessoa p, CancellationToken ct)
+    {
+        db.Add(p);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex)
+        {
+            throw new AppException($"Não foi possível salvar a pessoa: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        return p;
+    }
     public async Task ExcluirAsync(Pessoa p, CancellationToken ct) { db.Remove(p); await db.SaveChangesAsync(ct); }
 }
 public interface ITransacaoRepository
@@ -21,5 +31,14 @@ public interface ITransacaoRepository
 public class TransacaoRepository(AppDbContext db) : ITransacaoRepository
 {
     public Task<List<Transacao>> ListarAsync(int? pessoaId, CancellationToken ct) => db.Transacoes.AsNoTracking().Include(x => x.Pessoa).Where(x => !pessoaId.HasValue || x.PessoaId == pessoaId).OrderByDescending(x => x.Id).ToListAsync(ct);
-    public async Task<Transacao> CriarAsync(Transacao t, CancellationToken ct) { db.Add(t); await db.SaveChangesAsync(ct); return t; }
+    public async Task<Transacao> CriarAsync(Transacao t, CancellationToken ct)
+    {
+        db.Add(t);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex)
+        {
+            throw new AppException($"Não foi possível salvar a transação: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        return t;
+    }
 }
