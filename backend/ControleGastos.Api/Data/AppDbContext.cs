@@ -10,6 +10,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.Entity<Pessoa>().Property(x => x.Nome).HasMaxLength(150).IsRequired();
         b.Entity<Transacao>().Property(x => x.Descricao).HasMaxLength(250).IsRequired();
         b.Entity<Transacao>().Property(x => x.Valor).HasPrecision(18, 2);
+        b.Entity<Transacao>().Property(x => x.Data).IsRequired();
+        b.Entity<Transacao>().HasIndex(x => x.Data);
+        b.Entity<Transacao>().HasIndex(x => x.Categoria);
         // A cascata garante a remoção das transações também no nível do banco.
         b.Entity<Pessoa>().HasMany(x => x.Transacoes).WithOne(x => x.Pessoa).HasForeignKey(x => x.PessoaId).OnDelete(DeleteBehavior.Cascade);
     }

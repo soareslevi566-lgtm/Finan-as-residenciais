@@ -1,5 +1,6 @@
 using ControleGastos.Api.Data;
 using ControleGastos.Api.Exceptions;
+using ControleGastos.Api.Enums;
 using ControleGastos.Api.Models;
 using Microsoft.EntityFrameworkCore;
 namespace ControleGastos.Api.Repositories;
@@ -26,11 +27,22 @@ public class PessoaRepository(AppDbContext db) : IPessoaRepository
 }
 public interface ITransacaoRepository
 {
-    Task<List<Transacao>> ListarAsync(int? pessoaId, CancellationToken ct); Task<Transacao> CriarAsync(Transacao transacao, CancellationToken ct);
+    Task<List<Transacao>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct); Task<Transacao> CriarAsync(Transacao transacao, CancellationToken ct);
 }
 public class TransacaoRepository(AppDbContext db) : ITransacaoRepository
 {
-    public Task<List<Transacao>> ListarAsync(int? pessoaId, CancellationToken ct) => db.Transacoes.AsNoTracking().Include(x => x.Pessoa).Where(x => !pessoaId.HasValue || x.PessoaId == pessoaId).OrderByDescending(x => x.Id).ToListAsync(ct);
+    public Task<List<Transacao>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct)
+    {
+        var termo = busca?.Trim();
+        return db.Transacoes.AsNoTracking().Include(x => x.Pessoa)
+            .Where(x => !pessoaId.HasValue || x.PessoaId == pessoaId)
+            .Where(x => !tipo.HasValue || x.Tipo == tipo)
+            .Where(x => !categoria.HasValue || x.Categoria == categoria)
+            .Where(x => !inicio.HasValue || x.Data >= inicio.Value.Date)
+            .Where(x => !fim.HasValue || x.Data < fim.Value.Date.AddDays(1))
+            .Where(x => string.IsNullOrEmpty(termo) || x.Descricao.Contains(termo))
+            .OrderByDescending(x => x.Data).ThenByDescending(x => x.Id).ToListAsync(ct);
+    }
     public async Task<Transacao> CriarAsync(Transacao t, CancellationToken ct)
     {
         db.Add(t);

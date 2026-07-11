@@ -33,6 +33,8 @@ controle-gastos-residenciais/
 - Idade deve ser zero ou maior; valores financeiros devem ser positivos.
 - A pessoa informada na transação precisa existir.
 - Menores de 18 anos só podem receber despesas. A interface antecipa a regra e a API é a autoridade final.
+- Cada transação possui data e categoria; datas futuras e períodos fora do limite são rejeitados pela API.
+- A listagem aceita filtros combinados por pessoa, tipo, categoria, período e descrição.
 - Excluir uma pessoa remove suas transações por `ON DELETE CASCADE` no SQLite.
 - Pessoas sem transações aparecem nos totais com valores zerados.
 - Valores monetários usam `decimal` na API e são exibidos em BRL na interface.
@@ -78,7 +80,7 @@ Interface: `http://localhost:5173`. Para outra URL de API, altere `VITE_API_URL`
 | GET | `/api/pessoas` | Lista pessoas (`200`) |
 | DELETE | `/api/pessoas/{id}` | Exclui em cascata (`204`) |
 | POST | `/api/transacoes` | Cria transação (`201`) |
-| GET | `/api/transacoes?pessoaId=1` | Lista/filtra transações (`200`) |
+| GET | `/api/transacoes?pessoaId=1&tipo=Despesa&categoria=Moradia&inicio=2026-01-01&fim=2026-12-31&busca=energia` | Lista/filtra transações (`200`) |
 | GET | `/api/totais` | Totais individuais e gerais (`200`) |
 
 Exemplos:
@@ -94,7 +96,7 @@ Content-Type: application/json
 POST /api/transacoes
 Content-Type: application/json
 
-{"descricao":"Salário","valor":3000.00,"tipo":"Receita","pessoaId":1}
+{"descricao":"Salário","valor":3000.00,"tipo":"Receita","pessoaId":1,"categoria":"Salario","data":"2026-07-10T12:00:00Z"}
 ```
 
 Enums são enviados e recebidos como texto: `Despesa` ou `Receita`. Erros seguem `{"status":400,"mensagem":"..."}`.
@@ -113,4 +115,4 @@ Os 11 testes cobrem criação e validação de pessoa, regras de menores, pessoa
 
 ## Decisões e melhorias futuras
 
-A migração automática simplifica a avaliação local; repositórios são objetivos, sem abstrações genéricas. O agregado de totais usa projeção no banco e preserva pessoas sem transações. Melhorias possíveis: autenticação, paginação, edição, categorias, orçamento mensal, testes de integração HTTP, Docker e pipeline de CI.
+A migração automática simplifica a avaliação local; repositórios são objetivos, sem abstrações genéricas. O agregado de totais preserva pessoas sem transações. A API restringe origens CORS, aplica limite global por IP, padroniza validações e envia cabeçalhos contra MIME sniffing, framing e uso indevido de recursos do navegador. Melhorias possíveis: autenticação, paginação, edição, orçamento mensal, auditoria e pipeline de CI.

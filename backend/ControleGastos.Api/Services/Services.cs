@@ -26,13 +26,17 @@ public class TransacaoService(IPessoaRepository pessoas, ITransacaoRepository tr
         if (string.IsNullOrWhiteSpace(dto.Descricao)) throw new AppException("A descrição é obrigatória.");
         if (dto.Valor <= 0) throw new AppException("O valor deve ser maior que zero.");
         if (!Enum.IsDefined(dto.Tipo)) throw new AppException("Tipo de transação inválido.");
+        if (!Enum.IsDefined(dto.Categoria)) throw new AppException("Categoria inválida.");
+        var data = dto.Data?.ToUniversalTime() ?? DateTime.UtcNow;
+        if (data > DateTime.UtcNow.AddMinutes(5)) throw new AppException("A data da transação não pode estar no futuro.");
+        if (data < DateTime.UtcNow.AddYears(-100)) throw new AppException("A data da transação está fora do período permitido.");
         var pessoa = await pessoas.ObterAsync(dto.PessoaId, ct) ?? throw new AppException("Pessoa não encontrada.", 404);
         // Regra de domínio protegida no servidor, mesmo que a interface também a antecipe.
         if (pessoa.Idade < 18 && dto.Tipo == TipoTransacao.Receita) throw new AppException("Pessoas menores de 18 anos só podem possuir transações do tipo despesa.");
-        var t = await transacoes.CriarAsync(new Transacao { Descricao = dto.Descricao.Trim(), Valor = dto.Valor, Tipo = dto.Tipo, PessoaId = pessoa.Id }, ct);
-        return new(t.Id, t.Descricao, t.Valor, t.Tipo, pessoa.Id, pessoa.Nome);
+        var t = await transacoes.CriarAsync(new Transacao { Descricao = dto.Descricao.Trim(), Valor = dto.Valor, Tipo = dto.Tipo, PessoaId = pessoa.Id, Categoria = dto.Categoria, Data = data }, ct);
+        return new(t.Id, t.Descricao, t.Valor, t.Tipo, pessoa.Id, pessoa.Nome, t.Categoria, t.Data);
     }
-    public async Task<IReadOnlyList<TransacaoDto>> ListarAsync(int? pessoaId, CancellationToken ct) => (await transacoes.ListarAsync(pessoaId, ct)).Select(t => new TransacaoDto(t.Id, t.Descricao, t.Valor, t.Tipo, t.PessoaId, t.Pessoa.Nome)).ToList();
+    public async Task<IReadOnlyList<TransacaoDto>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct) => (await transacoes.ListarAsync(pessoaId, tipo, categoria, inicio, fim, busca, ct)).Select(t => new TransacaoDto(t.Id, t.Descricao, t.Valor, t.Tipo, t.PessoaId, t.Pessoa.Nome, t.Categoria, t.Data)).ToList();
 }
 public class TotaisService(AppDbContext db)
 {
