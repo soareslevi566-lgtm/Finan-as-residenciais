@@ -42,6 +42,14 @@ export default function TransacoesAvancadas() {
     } catch (e) { setAviso({ tipo: 'error', texto: mensagemErro(e) }); setOcupado(false); }
   }
   function limpar() { setFiltros({}); carregar({}); }
+  async function excluir(transacao: Transacao) {
+    if (!confirm(`Excluir o lançamento “${transacao.descricao}”? Esta ação não poderá ser desfeita.`)) return;
+    try {
+      await transacoesApi.excluir(transacao.id);
+      setAviso({ tipo: 'ok', texto: 'Lançamento excluído com sucesso.' });
+      await carregar(filtros);
+    } catch (e) { setAviso({ tipo: 'error', texto: mensagemErro(e) }); }
+  }
 
   return <main><header className="page-head"><p>CONTROLE DA CASA</p><h1>Transações</h1><span>Registre, organize e encontre cada movimento</span></header>
     <div className="grid transactions-grid"><section className="card"><h2>Nova transação</h2><form onSubmit={cadastrar}>
@@ -58,6 +66,6 @@ export default function TransacoesAvancadas() {
       <select aria-label="Filtrar categoria" value={filtros.categoria || ''} onChange={e => setFiltros({ ...filtros, categoria: e.target.value })}><option value="">Todas as categorias</option>{categorias.map(c => <option key={c.valor} value={c.valor}>{c.nome}</option>)}</select>
       <input aria-label="Data inicial" type="date" value={filtros.inicio || ''} onChange={e => setFiltros({ ...filtros, inicio: e.target.value })} /><input aria-label="Data final" type="date" value={filtros.fim || ''} onChange={e => setFiltros({ ...filtros, fim: e.target.value })} />
       <button type="button" onClick={() => carregar(filtros)}>Aplicar</button><button type="button" className="secondary" onClick={limpar}>Limpar</button></div>
-      {ocupado && !itens.length ? <div className="empty">Carregando…</div> : itens.length === 0 ? <div className="empty">Nenhuma transação encontrada.</div> : <div className="list">{itens.map(t => <div className="transaction detailed" key={t.id}><div><strong>{t.descricao}</strong><small>{t.pessoaNome} · {categorias.find(c => c.valor === t.categoria)?.nome} · {new Date(t.data).toLocaleDateString('pt-BR')}</small></div><span className={t.tipo === 'Receita' ? 'income' : 'expense'}>{t.tipo === 'Receita' ? '+' : '−'} {brl.format(t.valor)}</span></div>)}</div>}
+      {ocupado && !itens.length ? <div className="empty">Carregando…</div> : itens.length === 0 ? <div className="empty">Nenhuma transação encontrada.</div> : <div className="list">{itens.map(t => <div className="transaction detailed" key={t.id}><div><strong>{t.descricao}</strong><small>{t.pessoaNome} · {categorias.find(c => c.valor === t.categoria)?.nome} · {new Date(t.data).toLocaleDateString('pt-BR')}</small></div><div className="transaction-actions"><span className={t.tipo === 'Receita' ? 'income' : 'expense'}>{t.tipo === 'Receita' ? '+' : '−'} {brl.format(t.valor)}</span><button type="button" className="icon-delete" aria-label={`Excluir ${t.descricao}`} onClick={() => excluir(t)}>Excluir</button></div></div>)}</div>}
     </section></div></main>;
 }

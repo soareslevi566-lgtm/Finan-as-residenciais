@@ -37,6 +37,11 @@ public class TransacaoService(IPessoaRepository pessoas, ITransacaoRepository tr
         return new(t.Id, t.Descricao, t.Valor, t.Tipo, pessoa.Id, pessoa.Nome, t.Categoria, t.Data);
     }
     public async Task<IReadOnlyList<TransacaoDto>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct) => (await transacoes.ListarAsync(pessoaId, tipo, categoria, inicio, fim, busca, ct)).Select(t => new TransacaoDto(t.Id, t.Descricao, t.Valor, t.Tipo, t.PessoaId, t.Pessoa.Nome, t.Categoria, t.Data)).ToList();
+    public async Task ExcluirAsync(int id, CancellationToken ct)
+    {
+        var transacao = await transacoes.ObterAsync(id, ct) ?? throw new AppException("Transação não encontrada.", 404);
+        await transacoes.ExcluirAsync(transacao, ct);
+    }
 }
 public class TotaisService(AppDbContext db)
 {

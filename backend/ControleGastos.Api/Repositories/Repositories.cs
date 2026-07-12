@@ -27,7 +27,7 @@ public class PessoaRepository(AppDbContext db) : IPessoaRepository
 }
 public interface ITransacaoRepository
 {
-    Task<List<Transacao>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct); Task<Transacao> CriarAsync(Transacao transacao, CancellationToken ct);
+    Task<List<Transacao>> ListarAsync(int? pessoaId, TipoTransacao? tipo, CategoriaTransacao? categoria, DateTime? inicio, DateTime? fim, string? busca, CancellationToken ct); Task<Transacao?> ObterAsync(int id, CancellationToken ct); Task<Transacao> CriarAsync(Transacao transacao, CancellationToken ct); Task ExcluirAsync(Transacao transacao, CancellationToken ct);
 }
 public class TransacaoRepository(AppDbContext db) : ITransacaoRepository
 {
@@ -43,6 +43,7 @@ public class TransacaoRepository(AppDbContext db) : ITransacaoRepository
             .Where(x => string.IsNullOrEmpty(termo) || x.Descricao.Contains(termo))
             .OrderByDescending(x => x.Data).ThenByDescending(x => x.Id).ToListAsync(ct);
     }
+    public Task<Transacao?> ObterAsync(int id, CancellationToken ct) => db.Transacoes.FirstOrDefaultAsync(x => x.Id == id, ct);
     public async Task<Transacao> CriarAsync(Transacao t, CancellationToken ct)
     {
         db.Add(t);
@@ -53,4 +54,5 @@ public class TransacaoRepository(AppDbContext db) : ITransacaoRepository
         }
         return t;
     }
+    public async Task ExcluirAsync(Transacao transacao, CancellationToken ct) { db.Transacoes.Remove(transacao); await db.SaveChangesAsync(ct); }
 }

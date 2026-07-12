@@ -81,6 +81,7 @@ Interface: `http://localhost:5173`. Para outra URL de API, altere `VITE_API_URL`
 | DELETE | `/api/pessoas/{id}` | Exclui em cascata (`204`) |
 | POST | `/api/transacoes` | Cria transação (`201`) |
 | GET | `/api/transacoes?pessoaId=1&tipo=Despesa&categoria=Moradia&inicio=2026-01-01&fim=2026-12-31&busca=energia` | Lista/filtra transações (`200`) |
+| DELETE | `/api/transacoes/{id}` | Exclui um lançamento (`204`) |
 | GET | `/api/totais` | Totais individuais e gerais (`200`) |
 
 Exemplos:
